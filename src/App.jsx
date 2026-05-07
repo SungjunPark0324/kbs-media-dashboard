@@ -765,7 +765,7 @@ function App() {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2 style={{ fontSize: '1.4rem', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--kbs-navy)' }}>
-                <Target size={24} color="var(--kbs-blue)" /> {currentWeek.title} 현황 작성
+                <Target size={24} color="var(--kbs-blue)" /> {currentWeek.title}({currentWeek.date_str}) 현황 작성
               </h2>
               <button onClick={() => setIsModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={24} /></button>
             </div>
