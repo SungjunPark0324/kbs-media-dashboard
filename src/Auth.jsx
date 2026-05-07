@@ -106,7 +106,7 @@ export default function Auth({ view = 'login' }) {
               <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>사번 (ID)</label>
               <div style={{ position: 'relative' }}>
                 <User size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                <input type="text" required value={employeeId} onChange={e => setEmployeeId(e.target.value)} className="form-input" style={{ paddingLeft: '38px', width: '100%' }} placeholder="사번을 입력하세요 (예: 10319)" />
+                <input type="text" required value={employeeId} onChange={e => setEmployeeId(e.target.value)} className="form-input" style={{ paddingLeft: '38px', width: '100%' }} placeholder="사번을 입력하세요" />
               </div>
             </div>
             <div>
