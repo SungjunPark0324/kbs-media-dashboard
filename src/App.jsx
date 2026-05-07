@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { 
   ChevronLeft, ChevronRight, Info, AlertTriangle, Calendar, Target,
-  Megaphone, User, X, Plus, Trash2, Clock, Loader2, Edit3, Save, LogOut
+  Megaphone, User, X, Plus, Trash2, Clock, Loader2, Edit3, Save, LogOut, Lock
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import Auth from './Auth'
@@ -101,6 +101,10 @@ function App() {
   
   const [isEditingNotice, setIsEditingNotice] = useState(false)
   const [noticeText, setNoticeText] = useState('')
+
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [passwordChangeMessage, setPasswordChangeMessage] = useState('')
 
   // Auth Effect
   useEffect(() => {
@@ -438,6 +442,28 @@ function App() {
     fetchAllData()
   }
 
+  const handleUpdatePassword = async () => {
+    if (newPassword.length < 6) {
+      setPasswordChangeMessage('비밀번호는 최소 6자 이상이어야 합니다.')
+      return
+    }
+    
+    setIsSaving(true)
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    setIsSaving(false)
+    
+    if (error) {
+      setPasswordChangeMessage('변경 실패: ' + error.message)
+    } else {
+      setPasswordChangeMessage('비밀번호가 성공적으로 변경되었습니다.')
+      setTimeout(() => {
+        setIsPasswordModalOpen(false)
+        setNewPassword('')
+        setPasswordChangeMessage('')
+      }, 1500)
+    }
+  }
+
   return (
     <div className="app-container animate-fade-in">
       <header className="header" style={{ marginBottom: '2rem' }}>
@@ -473,9 +499,14 @@ function App() {
             <button className="btn btn-primary" onClick={handleOpenModal} style={{ padding: '8px 16px', fontSize: '0.9rem' }}>
               이번 주 작성하기
             </button>
-            <button onClick={handleSignOut} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-              <LogOut size={12} /> 로그아웃
-            </button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button onClick={() => setIsPasswordModalOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Lock size={12} /> 비밀번호 변경
+              </button>
+              <button onClick={handleSignOut} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <LogOut size={12} /> 로그아웃
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -785,6 +816,53 @@ function App() {
               <button className="btn btn-primary" onClick={handleSaveReport} disabled={isSaving}>
                 {isSaving ? <Loader2 size={18} className="animate-spin" /> : '저장하기'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password Change Modal */}
+      {isPasswordModalOpen && (
+        <div className="modal-overlay animate-fade-in" onClick={() => setIsPasswordModalOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h2>비밀번호 변경</h2>
+              <button className="close-btn" onClick={() => setIsPasswordModalOpen(false)}><X size={24} /></button>
+            </div>
+            
+            <div style={{ padding: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>새 비밀번호</label>
+              <input 
+                type="password" 
+                className="form-input" 
+                value={newPassword} 
+                onChange={(e) => { setNewPassword(e.target.value); setPasswordChangeMessage(''); }}
+                placeholder="새로운 비밀번호 (최소 6자)"
+                style={{ width: '100%', marginBottom: '10px' }}
+              />
+              
+              {passwordChangeMessage && (
+                <div style={{ 
+                  color: passwordChangeMessage.includes('성공') ? '#10b981' : '#ef4444', 
+                  fontSize: '0.85rem', 
+                  marginBottom: '10px',
+                  background: passwordChangeMessage.includes('성공') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                  padding: '8px',
+                  borderRadius: '6px',
+                  textAlign: 'center'
+                }}>
+                  {passwordChangeMessage}
+                </div>
+              )}
+              
+              <div style={{ display: 'flex', gap: '10px', marginTop: '1rem' }}>
+                <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setIsPasswordModalOpen(false)}>
+                  취소
+                </button>
+                <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleUpdatePassword} disabled={isSaving}>
+                  {isSaving ? <Loader2 className="animate-spin" size={18} /> : '변경하기'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
