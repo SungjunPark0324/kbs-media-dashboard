@@ -48,6 +48,19 @@ function generateWeeklyCalendar(weekData, reports) {
         })
      })
      
+     const TYPE_ORDER = ['휴가', '반차', '자율출퇴근제']
+     const FIXED_ORDER = ['박성준', '김유정', '정성은', '김연희', '신혜영']
+     
+     events.sort((a, b) => {
+       const typeA = TYPE_ORDER.indexOf(a.type)
+       const typeB = TYPE_ORDER.indexOf(b.type)
+       if (typeA !== typeB) return (typeA === -1 ? 99 : typeA) - (typeB === -1 ? 99 : typeB)
+       
+       const nameA = FIXED_ORDER.indexOf(a.name)
+       const nameB = FIXED_ORDER.indexOf(b.name)
+       return (nameA === -1 ? 99 : nameA) - (nameB === -1 ? 99 : nameB)
+     })
+     
      calendar.push({ date: dateStr, day: dayOfWeek, events })
   }
   return calendar
