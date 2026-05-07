@@ -784,7 +784,7 @@ function App() {
                         <option value="예정">예정</option>
                       </select>
                       <input type="text" className="form-input" placeholder="실행 중심의 구체적인 업무 내용 입력" value={task.text} onChange={e => handleUpdateTask(task.id, 'text', e.target.value)} style={{ flex: 1 }} />
-                      <input type="date" className="form-input" value={task.deadline || ''} onChange={e => handleUpdateTask(task.id, 'deadline', e.target.value)} style={{ width: '130px' }} />
+                      <input type="date" className="form-input" value={task.deadline || ''} onChange={e => handleUpdateTask(task.id, 'deadline', e.target.value)} style={{ width: '145px' }} />
                       <button onClick={() => handleRemoveTask(task.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', padding: '5px' }} disabled={formData.coreTasks.length === 1}><Trash2 size={20} /></button>
                     </div>
                   ))}
