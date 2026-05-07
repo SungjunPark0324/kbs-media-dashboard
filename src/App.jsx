@@ -530,9 +530,6 @@ function App() {
             }}
           />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <button className="btn btn-primary" onClick={handleOpenModal} style={{ padding: '8px 16px', fontSize: '0.9rem' }}>
-              이번 주 작성하기
-            </button>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button onClick={() => setIsPasswordModalOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Lock size={12} /> 비밀번호 변경
@@ -648,6 +645,15 @@ function App() {
                 )}
                 <h3 style={{ fontSize: '1.2rem', margin: 0, color: 'var(--kbs-navy)' }}>{report.name}</h3>
               </div>
+              {currentUserProfile && currentUserProfile.id === report.id && (
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleOpenModal} 
+                  style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <Edit3 size={14} /> 내 현황 작성
+                </button>
+              )}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1 }}>
