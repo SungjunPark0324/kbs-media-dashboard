@@ -106,6 +106,12 @@ function App() {
   const [newPassword, setNewPassword] = useState('')
   const [passwordChangeMessage, setPasswordChangeMessage] = useState('')
 
+  const formatDateShort = (dateStr) => {
+    if (!dateStr || !dateStr.includes('-')) return dateStr
+    const [y, m, d] = dateStr.split('-')
+    return `${parseInt(m)}.${parseInt(d)}`
+  }
+
   // Auth Effect
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -180,7 +186,18 @@ function App() {
           allProfiles.forEach(p => {
             // Find if this user has a report for this week
             const existingReport = (rData || []).find(r => r.week_id === w.id && r.profiles.id === p.id)
-            const userAttendance = (aData || []).filter(a => a.user_id === p.id)
+            const userAttendance = (aData || []).filter(a => {
+              if (a.user_id !== p.id) return false;
+              const aStart = new Date(a.start_date)
+              aStart.setHours(0,0,0,0)
+              const aEnd = new Date(a.end_date || a.start_date)
+              aEnd.setHours(23,59,59,999)
+              const wStart = new Date(w.start_date)
+              wStart.setHours(0,0,0,0)
+              const wEnd = new Date(w.end_date)
+              wEnd.setHours(23,59,59,999)
+              return (aStart <= wEnd && aEnd >= wStart)
+            })
             
             if (existingReport) {
               formattedReports[w.id].push({
@@ -386,19 +403,33 @@ function App() {
         }
       }
 
-      // 3. Attendance (Sync for this user)
-      await supabase.from('attendance').delete().eq('user_id', currentUserProfile.id)
-      const attToInsert = formData.attendance
+      // 3. Attendance (Sync safely without deleting other weeks)
+      const existingAttIds = (weekReports.find(r => r.id === currentUserProfile.id)?.attendance || []).map(a => a.id)
+      const currentFormIds = formData.attendance.map(a => a.id)
+      const idsToDelete = existingAttIds.filter(id => !currentFormIds.includes(id))
+      
+      if (idsToDelete.length > 0) {
+        await supabase.from('attendance').delete().in('id', idsToDelete)
+      }
+      
+      const attToUpsert = formData.attendance
         .filter(a => a.startDate)
-        .map(a => ({
-          user_id: currentUserProfile.id,
-          type: a.type,
-          start_date: a.startDate,
-          end_date: a.endDate || a.startDate,
-          time_option: a.timeOption
-        }))
-      if (attToInsert.length > 0) {
-        await supabase.from('attendance').insert(attToInsert)
+        .map(a => {
+          const payload = {
+            user_id: currentUserProfile.id,
+            type: a.type,
+            start_date: a.startDate,
+            end_date: a.endDate || a.startDate,
+            time_option: a.timeOption
+          }
+          if (typeof a.id === 'string' && a.id.includes('-') && !a.id.startsWith('temp-')) {
+            payload.id = a.id
+          }
+          return payload
+        })
+        
+      if (attToUpsert.length > 0) {
+        await supabase.from('attendance').upsert(attToUpsert)
       }
 
       // Refresh local data
@@ -426,9 +457,12 @@ function App() {
         if (a.id !== id) return a;
         const updated = { ...a, [field]: value };
         if (field === 'type') {
-          if (value === '휴가') { updated.timeOption = '종일'; updated.endDate = updated.startDate; }
-          else if (value === '반차') { updated.timeOption = '오전'; updated.endDate = updated.startDate; }
-          else if (value === '자율출퇴근제') { updated.timeOption = '08:00~17:00'; updated.endDate = updated.startDate; }
+          if (value === '휴가') { updated.timeOption = '종일'; }
+          else if (value === '반차') { updated.timeOption = '오전'; }
+          else if (value === '자율출퇴근제') { updated.timeOption = '08:00~17:00'; }
+        }
+        if (field === 'startDate' && !updated.endDate) {
+          updated.endDate = value;
         }
         return updated;
       })
@@ -644,7 +678,7 @@ function App() {
                           <div style={{ color: 'var(--text-primary)', fontSize: '0.95rem', lineHeight: 1.4, fontWeight: '500', wordBreak: 'keep-all', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}>{task.text}</div>
                           {task.deadline && (
                             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <Calendar size={12} /> 완료 예정 기한: {task.deadline}
+                              <Calendar size={12} /> 완료 예정 기한: {formatDateShort(task.deadline)}
                             </div>
                           )}
                         </div>
@@ -744,7 +778,7 @@ function App() {
                         <option value="예정">예정</option>
                       </select>
                       <input type="text" className="form-input" placeholder="실행 중심의 구체적인 업무 내용 입력" value={task.text} onChange={e => handleUpdateTask(task.id, 'text', e.target.value)} style={{ flex: 1 }} />
-                      <input type="text" className="form-input" placeholder="기한 (예: 5.15)" value={task.deadline} onChange={e => handleUpdateTask(task.id, 'deadline', e.target.value)} style={{ width: '120px' }} />
+                      <input type="date" className="form-input" value={task.deadline || ''} onChange={e => handleUpdateTask(task.id, 'deadline', e.target.value)} style={{ width: '130px' }} />
                       <button onClick={() => handleRemoveTask(task.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', padding: '5px' }} disabled={formData.coreTasks.length === 1}><Trash2 size={20} /></button>
                     </div>
                   ))}
