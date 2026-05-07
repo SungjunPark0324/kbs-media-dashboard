@@ -362,10 +362,22 @@ function App() {
       }
     }
 
+    const convertLegacyDate = (dateStr) => {
+      if (!dateStr) return '';
+      if (dateStr.includes('-')) return dateStr;
+      const match = dateStr.match(/(\d+)\.(\d+)/);
+      if (match) {
+        const m = match[1].padStart(2, '0');
+        const d = match[2].padStart(2, '0');
+        return `2026-${m}-${d}`;
+      }
+      return '';
+    }
+
     if (existingReport) {
       const initialTasks = existingReport.coreTasks && existingReport.coreTasks.length > 0 
-          ? existingReport.coreTasks.map(t => ({...t, id: t.id || Date.now() + Math.random()})) 
-          : inheritedTasks.length > 0 ? inheritedTasks : [{ id: Date.now(), status: '진행', text: '', deadline: '' }]
+          ? existingReport.coreTasks.map(t => ({...t, id: t.id || Date.now() + Math.random(), deadline: convertLegacyDate(t.deadline)})) 
+          : inheritedTasks.length > 0 ? inheritedTasks.map(t => ({...t, deadline: convertLegacyDate(t.deadline)})) : [{ id: Date.now(), status: '진행', text: '', deadline: '' }]
 
       setFormData({
         coreTasks: initialTasks,
