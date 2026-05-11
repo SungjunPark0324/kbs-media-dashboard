@@ -625,7 +625,7 @@ function App() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {commentText && (
                 <button
-                  onClick={() => { if (window.confirm('코멘트를 삭제할까요?')) handleDeleteComment(report.reportId, section) }}
+                  onClick={() => handleDeleteComment(report.reportId, section)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '3px' }}>
                   <Trash2 size={11} /> 삭제
                 </button>
