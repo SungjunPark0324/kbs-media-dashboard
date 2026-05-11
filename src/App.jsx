@@ -228,7 +228,7 @@ function App() {
                 profileImg: p.profile_img,
                 employee_id: p.employee_id,
                 coreTasks: existingReport.tasks || [],
-                bottlenecks: existingReport.bottlenecks || '',
+                bottlenecks: (existingReport.bottlenecks || '').trim(),
                 attendance: userAttendance,
                 leaderComment: {
                   tasksComment: (existingComment?.tasks_comment || '').trim(),
@@ -588,7 +588,7 @@ function App() {
     const commentText = section === 'tasks' ? report.leaderComment?.tasksComment : report.leaderComment?.bottlenecksComment
     const authorId = section === 'tasks' ? report.leaderComment?.tasksAuthorId : report.leaderComment?.bottlenecksAuthorId
     const isEditing = editingComment?.reportId === report.reportId && editingComment?.section === section
-    const isAuthor = currentUserProfile.id === authorId
+    const isAuthor = !authorId || currentUserProfile.id === authorId
     const placeholder = section === 'tasks'
       ? '핵심 업무에 대한 코멘트를 입력하세요.'
       : '지원 필요 및 병목사항에 대한 코멘트를 입력하세요.'
