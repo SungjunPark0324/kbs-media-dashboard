@@ -588,7 +588,6 @@ function App() {
     const commentText = section === 'tasks' ? report.leaderComment?.tasksComment : report.leaderComment?.bottlenecksComment
     const authorId = section === 'tasks' ? report.leaderComment?.tasksAuthorId : report.leaderComment?.bottlenecksAuthorId
     const isEditing = editingComment?.reportId === report.reportId && editingComment?.section === section
-    const isAuthor = !authorId || currentUserProfile.id === authorId
     const placeholder = section === 'tasks'
       ? '핵심 업무에 대한 코멘트를 입력하세요.'
       : '지원 필요 및 병목사항에 대한 코멘트를 입력하세요.'
@@ -609,7 +608,7 @@ function App() {
           </span>
           {!isEditing && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {isAuthor && commentText && (
+              {commentText && (
                 <button
                   onClick={() => { if (window.confirm('코멘트를 삭제할까요?')) handleDeleteComment(report.reportId, section) }}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '3px' }}>
