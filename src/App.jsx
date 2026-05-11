@@ -572,7 +572,6 @@ function App() {
       ? '핵심 업무에 대한 코멘트를 입력하세요.'
       : '지원 필요 및 병목사항에 대한 코멘트를 입력하세요.'
 
-    if (!isTeamLeader && !commentText) return null
     if (!report.reportId) return null
 
     return (
@@ -584,9 +583,9 @@ function App() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: (commentText || isEditing) ? '8px' : '0' }}>
           <span style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--kbs-orange)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <MessageSquare size={13} /> 팀장 코멘트
+            <MessageSquare size={13} /> 코멘트
           </span>
-          {isTeamLeader && !isEditing && (
+          {!isEditing && (
             <button
               onClick={() => setEditingComment({ reportId: report.reportId, section, value: commentText || '' })}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--kbs-orange)', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -822,7 +821,7 @@ function App() {
               </div>
 
               {/* Bottlenecks */}
-              {(report.bottlenecks || report.leaderComment?.bottlenecksComment || (isTeamLeader && report.reportId)) && (
+              {(report.bottlenecks || report.leaderComment?.bottlenecksComment || report.reportId) && (
                 <div>
                   <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', color: 'var(--status-danger)', fontSize: '1rem' }}>
                     <AlertTriangle size={18} /> 지원 필요 및 병목사항
