@@ -231,8 +231,8 @@ function App() {
                 bottlenecks: existingReport.bottlenecks || '',
                 attendance: userAttendance,
                 leaderComment: {
-                  tasksComment: existingComment?.tasks_comment || '',
-                  bottlenecksComment: existingComment?.bottlenecks_comment || '',
+                  tasksComment: (existingComment?.tasks_comment || '').trim(),
+                  bottlenecksComment: (existingComment?.bottlenecks_comment || '').trim(),
                   tasksAuthorId: existingComment?.tasks_comment_author_id || null,
                   bottlenecksAuthorId: existingComment?.bottlenecks_comment_author_id || null
                 }
