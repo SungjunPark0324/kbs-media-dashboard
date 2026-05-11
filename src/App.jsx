@@ -120,8 +120,8 @@ function App() {
   const [passwordChangeMessage, setPasswordChangeMessage] = useState('')
 
   const [editingComment, setEditingComment] = useState(null)
-  // Shape: { reportId: string, section: 'tasks' | 'bottlenecks', value: string }
   const [isSavingComment, setIsSavingComment] = useState(false)
+  const [openComments, setOpenComments] = useState(new Set())
 
   const formatDateShort = (dateStr) => {
     if (!dateStr || !dateStr.includes('-')) return dateStr
@@ -512,6 +512,18 @@ function App() {
   }
   const handleRemoveAttendance = (id) => setFormData(prev => ({...prev, attendance: prev.attendance.filter(a => a.id !== id) }))
 
+  const handleCommentToggle = (reportId, section, commentText) => {
+    const key = `${reportId}-${section}`
+    const isCurrentlyOpen = openComments.has(key)
+    if (isCurrentlyOpen) {
+      setOpenComments(prev => { const next = new Set(prev); next.delete(key); return next })
+      setEditingComment(prev => (prev?.reportId === reportId && prev?.section === section) ? null : prev)
+    } else {
+      setOpenComments(prev => { const next = new Set(prev); next.add(key); return next })
+      if (!commentText) setEditingComment({ reportId, section, value: '' })
+    }
+  }
+
   const handleDeleteComment = async (reportId, section) => {
     const col = section === 'tasks' ? 'tasks_comment' : 'bottlenecks_comment'
     const authorCol = section === 'tasks' ? 'tasks_comment_author_id' : 'bottlenecks_comment_author_id'
@@ -592,8 +604,11 @@ function App() {
       ? '핵심 업무에 대한 코멘트를 입력하세요.'
       : '지원 필요 및 병목사항에 대한 코멘트를 입력하세요.'
 
+    const isOpen = openComments.has(`${report.reportId}-${section}`)
+
     if (!report.reportId) return null
     if (!hasContent && !commentText) return null
+    if (!isOpen && !isEditing) return null
 
     return (
       <div style={{
@@ -635,7 +650,10 @@ function App() {
               style={{ resize: 'vertical' }}
             />
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" style={{ padding: '5px 12px', fontSize: '0.82rem' }} onClick={() => setEditingComment(null)}>취소</button>
+              <button className="btn btn-secondary" style={{ padding: '5px 12px', fontSize: '0.82rem' }} onClick={() => {
+                setEditingComment(null)
+                if (!commentText) setOpenComments(prev => { const next = new Set(prev); next.delete(`${report.reportId}-${section}`); return next })
+              }}>취소</button>
               <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={handleSaveComment} disabled={isSavingComment}>
                 {isSavingComment ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <><Save size={13} /> 저장</>}
               </button>
@@ -825,7 +843,11 @@ function App() {
                 <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', color: 'var(--kbs-navy)', fontSize: '1rem' }}>
                   <Target size={18} color="var(--status-success)" /> 핵심 업무 (Action Item)
                 </h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '1rem', background: 'var(--bg-card)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '1rem', background: 'var(--bg-card)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', cursor: report.reportId ? 'pointer' : 'default' }}
+                  onClick={() => report.reportId && handleCommentToggle(report.reportId, 'tasks', report.leaderComment?.tasksComment)}
+                  title={report.reportId ? '클릭하여 코멘트 작성' : ''}
+                >
                   {Array.isArray(report.coreTasks) && report.coreTasks.length > 0 ? (
                     report.coreTasks.map(task => (
                       <div key={task.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
@@ -859,7 +881,11 @@ function App() {
                     <AlertTriangle size={18} /> 지원 필요 및 병목사항
                   </h4>
                   {report.bottlenecks && (
-                    <div style={{ whiteSpace: 'pre-wrap', color: 'var(--status-danger)', fontSize: '0.95rem', lineHeight: 1.6, padding: '1rem', background: 'rgba(239, 68, 68, 0.05)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                    <div
+                      style={{ whiteSpace: 'pre-wrap', color: 'var(--status-danger)', fontSize: '0.95rem', lineHeight: 1.6, padding: '1rem', background: 'rgba(239, 68, 68, 0.05)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.2)', cursor: report.reportId ? 'pointer' : 'default' }}
+                      onClick={() => report.reportId && handleCommentToggle(report.reportId, 'bottlenecks', report.leaderComment?.bottlenecksComment)}
+                      title={report.reportId ? '클릭하여 코멘트 작성' : ''}
+                    >
                       {report.bottlenecks}
                     </div>
                   )}
