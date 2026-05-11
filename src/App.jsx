@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { 
   ChevronLeft, ChevronRight, Info, AlertTriangle, Calendar, Target,
-  Megaphone, User, X, Plus, Trash2, Clock, Loader2, Edit3, Save, LogOut, Lock
+  Megaphone, User, X, Plus, Trash2, Clock, Loader2, Edit3, Save, LogOut, Lock, MessageSquare
 } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import Auth from './Auth'
@@ -119,6 +119,10 @@ function App() {
   const [newPassword, setNewPassword] = useState('')
   const [passwordChangeMessage, setPasswordChangeMessage] = useState('')
 
+  const [editingComment, setEditingComment] = useState(null)
+  // Shape: { reportId: string, section: 'tasks' | 'bottlenecks', value: string }
+  const [isSavingComment, setIsSavingComment] = useState(false)
+
   const formatDateShort = (dateStr) => {
     if (!dateStr || !dateStr.includes('-')) return dateStr
     const [y, m, d] = dateStr.split('-')
@@ -185,8 +189,11 @@ function App() {
 
     // 3. Fetch attendance
     const { data: aData } = await supabase.from('attendance').select('*')
-    
-    // 4. Fetch all profiles to ensure everyone has a card even if no report exists
+
+    // 4. Fetch leader comments
+    const { data: cData } = await supabase.from('leader_comments').select('*')
+
+    // 5. Fetch all profiles to ensure everyone has a card even if no report exists
     const { data: allProfiles } = await supabase.from('profiles').select('*')
 
     if (wData && wData.length > 0) {
@@ -213,24 +220,32 @@ function App() {
             })
             
             if (existingReport) {
+              const existingComment = (cData || []).find(c => c.report_id === existingReport.id)
               formattedReports[w.id].push({
                 id: p.id,
+                reportId: existingReport.id,
                 name: p.name,
                 profileImg: p.profile_img,
                 employee_id: p.employee_id,
                 coreTasks: existingReport.tasks || [],
                 bottlenecks: existingReport.bottlenecks || '',
-                attendance: userAttendance
+                attendance: userAttendance,
+                leaderComment: {
+                  tasksComment: existingComment?.tasks_comment || '',
+                  bottlenecksComment: existingComment?.bottlenecks_comment || ''
+                }
               })
             } else {
               formattedReports[w.id].push({
                 id: p.id,
+                reportId: null,
                 name: p.name,
                 profileImg: p.profile_img,
                 employee_id: p.employee_id,
                 coreTasks: [],
                 bottlenecks: '',
-                attendance: userAttendance
+                attendance: userAttendance,
+                leaderComment: { tasksComment: '', bottlenecksComment: '' }
               })
             }
           })
@@ -501,6 +516,33 @@ function App() {
     fetchAllData()
   }
 
+  const handleSaveComment = async () => {
+    if (!editingComment) return
+    setIsSavingComment(true)
+    try {
+      const col = editingComment.section === 'tasks' ? 'tasks_comment' : 'bottlenecks_comment'
+      const { data: existing } = await supabase
+        .from('leader_comments')
+        .select('id')
+        .eq('report_id', editingComment.reportId)
+        .maybeSingle()
+      if (existing) {
+        await supabase.from('leader_comments')
+          .update({ [col]: editingComment.value, updated_at: new Date().toISOString() })
+          .eq('id', existing.id)
+      } else {
+        await supabase.from('leader_comments')
+          .insert({ report_id: editingComment.reportId, [col]: editingComment.value })
+      }
+      setEditingComment(null)
+      await fetchAllData()
+    } catch (e) {
+      console.error('코멘트 저장 오류:', e)
+    } finally {
+      setIsSavingComment(false)
+    }
+  }
+
   const handleUpdatePassword = async () => {
     if (newPassword.length < 6) {
       setPasswordChangeMessage('비밀번호는 최소 6자 이상이어야 합니다.')
@@ -521,6 +563,64 @@ function App() {
         setPasswordChangeMessage('')
       }, 1500)
     }
+  }
+
+  const renderCommentBlock = (report, section) => {
+    const commentText = section === 'tasks' ? report.leaderComment?.tasksComment : report.leaderComment?.bottlenecksComment
+    const isEditing = editingComment?.reportId === report.reportId && editingComment?.section === section
+    const placeholder = section === 'tasks'
+      ? '핵심 업무에 대한 코멘트를 입력하세요.'
+      : '지원 필요 및 병목사항에 대한 코멘트를 입력하세요.'
+
+    if (!isTeamLeader && !commentText) return null
+    if (!report.reportId) return null
+
+    return (
+      <div style={{
+        marginTop: '10px', padding: '12px 14px',
+        background: 'rgba(255, 156, 0, 0.04)',
+        border: '1px solid rgba(255, 156, 0, 0.22)',
+        borderRadius: 'var(--radius-md)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: (commentText || isEditing) ? '8px' : '0' }}>
+          <span style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--kbs-orange)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <MessageSquare size={13} /> 팀장 코멘트
+          </span>
+          {isTeamLeader && !isEditing && (
+            <button
+              onClick={() => setEditingComment({ reportId: report.reportId, section, value: commentText || '' })}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--kbs-orange)', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '3px' }}>
+              <Edit3 size={11} /> {commentText ? '수정' : '작성'}
+            </button>
+          )}
+        </div>
+        {isEditing ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <textarea
+              className="form-input" rows={3}
+              value={editingComment.value}
+              onChange={e => setEditingComment({ ...editingComment, value: e.target.value })}
+              placeholder={placeholder}
+              style={{ resize: 'vertical' }}
+            />
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" style={{ padding: '5px 12px', fontSize: '0.82rem' }} onClick={() => setEditingComment(null)}>취소</button>
+              <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={handleSaveComment} disabled={isSavingComment}>
+                {isSavingComment ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <><Save size={13} /> 저장</>}
+              </button>
+            </div>
+          </div>
+        ) : commentText ? (
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+            {commentText}
+          </div>
+        ) : (
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem', fontStyle: 'italic' }}>
+            코멘트를 작성해 주세요.
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -717,17 +817,22 @@ function App() {
                     ))
                   ) : <span style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>등록된 업무가 없습니다.</span>}
                 </div>
+
+                {renderCommentBlock(report, 'tasks')}
               </div>
 
               {/* Bottlenecks */}
-              {report.bottlenecks && (
+              {(report.bottlenecks || report.leaderComment?.bottlenecksComment || (isTeamLeader && report.reportId)) && (
                 <div>
                   <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', color: 'var(--status-danger)', fontSize: '1rem' }}>
                     <AlertTriangle size={18} /> 지원 필요 및 병목사항
                   </h4>
-                  <div style={{ whiteSpace: 'pre-wrap', color: 'var(--status-danger)', fontSize: '0.95rem', lineHeight: 1.6, padding: '1rem', background: 'rgba(239, 68, 68, 0.05)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                    {report.bottlenecks}
-                  </div>
+                  {report.bottlenecks && (
+                    <div style={{ whiteSpace: 'pre-wrap', color: 'var(--status-danger)', fontSize: '0.95rem', lineHeight: 1.6, padding: '1rem', background: 'rgba(239, 68, 68, 0.05)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                      {report.bottlenecks}
+                    </div>
+                  )}
+                  {renderCommentBlock(report, 'bottlenecks')}
                 </div>
               )}
             </div>
