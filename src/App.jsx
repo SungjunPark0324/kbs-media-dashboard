@@ -232,7 +232,9 @@ function App() {
                 attendance: userAttendance,
                 leaderComment: {
                   tasksComment: existingComment?.tasks_comment || '',
-                  bottlenecksComment: existingComment?.bottlenecks_comment || ''
+                  bottlenecksComment: existingComment?.bottlenecks_comment || '',
+                  tasksAuthorId: existingComment?.tasks_comment_author_id || null,
+                  bottlenecksAuthorId: existingComment?.bottlenecks_comment_author_id || null
                 }
               })
             } else {
@@ -245,7 +247,7 @@ function App() {
                 coreTasks: [],
                 bottlenecks: '',
                 attendance: userAttendance,
-                leaderComment: { tasksComment: '', bottlenecksComment: '' }
+                leaderComment: { tasksComment: '', bottlenecksComment: '', tasksAuthorId: null, bottlenecksAuthorId: null }
               })
             }
           })
@@ -510,6 +512,22 @@ function App() {
   }
   const handleRemoveAttendance = (id) => setFormData(prev => ({...prev, attendance: prev.attendance.filter(a => a.id !== id) }))
 
+  const handleDeleteComment = async (reportId, section) => {
+    const col = section === 'tasks' ? 'tasks_comment' : 'bottlenecks_comment'
+    const authorCol = section === 'tasks' ? 'tasks_comment_author_id' : 'bottlenecks_comment_author_id'
+    const { data: existing } = await supabase
+      .from('leader_comments')
+      .select('id')
+      .eq('report_id', reportId)
+      .maybeSingle()
+    if (existing) {
+      await supabase.from('leader_comments')
+        .update({ [col]: '', [authorCol]: null, updated_at: new Date().toISOString() })
+        .eq('id', existing.id)
+    }
+    await fetchAllData()
+  }
+
   const handleSaveNotice = async () => {
     await supabase.from('weeks').update({ team_notice: noticeText }).eq('id', currentWeek.id)
     setIsEditingNotice(false)
@@ -526,13 +544,14 @@ function App() {
         .select('id')
         .eq('report_id', editingComment.reportId)
         .maybeSingle()
+      const authorCol = editingComment.section === 'tasks' ? 'tasks_comment_author_id' : 'bottlenecks_comment_author_id'
       if (existing) {
         await supabase.from('leader_comments')
-          .update({ [col]: editingComment.value, updated_at: new Date().toISOString() })
+          .update({ [col]: editingComment.value, [authorCol]: currentUserProfile.id, updated_at: new Date().toISOString() })
           .eq('id', existing.id)
       } else {
         await supabase.from('leader_comments')
-          .insert({ report_id: editingComment.reportId, [col]: editingComment.value })
+          .insert({ report_id: editingComment.reportId, [col]: editingComment.value, [authorCol]: currentUserProfile.id })
       }
       setEditingComment(null)
       await fetchAllData()
@@ -565,14 +584,17 @@ function App() {
     }
   }
 
-  const renderCommentBlock = (report, section) => {
+  const renderCommentBlock = (report, section, hasContent) => {
     const commentText = section === 'tasks' ? report.leaderComment?.tasksComment : report.leaderComment?.bottlenecksComment
+    const authorId = section === 'tasks' ? report.leaderComment?.tasksAuthorId : report.leaderComment?.bottlenecksAuthorId
     const isEditing = editingComment?.reportId === report.reportId && editingComment?.section === section
+    const isAuthor = currentUserProfile.id === authorId
     const placeholder = section === 'tasks'
       ? '핵심 업무에 대한 코멘트를 입력하세요.'
       : '지원 필요 및 병목사항에 대한 코멘트를 입력하세요.'
 
     if (!report.reportId) return null
+    if (!hasContent && !commentText) return null
 
     return (
       <div style={{
@@ -586,11 +608,22 @@ function App() {
             <MessageSquare size={13} /> 코멘트
           </span>
           {!isEditing && (
-            <button
-              onClick={() => setEditingComment({ reportId: report.reportId, section, value: commentText || '' })}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--kbs-orange)', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '3px' }}>
-              <Edit3 size={11} /> {commentText ? '수정' : '작성'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {isAuthor && commentText && (
+                <button
+                  onClick={() => { if (window.confirm('코멘트를 삭제할까요?')) handleDeleteComment(report.reportId, section) }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--status-danger)', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                  <Trash2 size={11} /> 삭제
+                </button>
+              )}
+              {hasContent && (
+                <button
+                  onClick={() => setEditingComment({ reportId: report.reportId, section, value: commentText || '' })}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--kbs-orange)', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                  <Edit3 size={11} /> {commentText ? '수정' : '작성'}
+                </button>
+              )}
+            </div>
           )}
         </div>
         {isEditing ? (
@@ -817,11 +850,11 @@ function App() {
                   ) : <span style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>등록된 업무가 없습니다.</span>}
                 </div>
 
-                {renderCommentBlock(report, 'tasks')}
+                {renderCommentBlock(report, 'tasks', Array.isArray(report.coreTasks) && report.coreTasks.length > 0)}
               </div>
 
               {/* Bottlenecks */}
-              {(report.bottlenecks || report.leaderComment?.bottlenecksComment || report.reportId) && (
+              {(report.bottlenecks || report.leaderComment?.bottlenecksComment) && (
                 <div>
                   <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', color: 'var(--status-danger)', fontSize: '1rem' }}>
                     <AlertTriangle size={18} /> 지원 필요 및 병목사항
@@ -831,7 +864,7 @@ function App() {
                       {report.bottlenecks}
                     </div>
                   )}
-                  {renderCommentBlock(report, 'bottlenecks')}
+                  {renderCommentBlock(report, 'bottlenecks', !!report.bottlenecks)}
                 </div>
               )}
             </div>
